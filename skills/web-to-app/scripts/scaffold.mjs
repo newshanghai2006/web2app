@@ -8,11 +8,12 @@ function help() {
 
 Options:
   --name <name>            Product name (default: website hostname)
-  --platforms <list>       macos,windows,linux (default: current platform)
+  --platforms <list>       macos,windows,linux,android (default: current platform)
   --width <pixels>         Window width, 480-3840 (default: 1280)
   --height <pixels>        Window height, 360-2160 (default: 820)
   --identifier <id>        Bundle identifier (default: app.web2app.<slug>)
   --out <directory>        Parent output directory (default: ./output)
+  --icon <png-file>        Optional square PNG source icon
   --fixed                  Disable window resizing
   --always-on-top          Keep the window above other windows
   --help                   Show this help`)
@@ -60,9 +61,9 @@ if (!Number.isInteger(width) || width < 480 || width > 3840 || !Number.isInteger
 }
 
 const platforms = String(args.platforms || process.platform).split(',').map((item) => item.trim())
-const validPlatforms = new Set(['macos', 'windows', 'linux', 'darwin', 'win32'])
+const validPlatforms = new Set(['macos', 'windows', 'linux', 'android', 'darwin', 'win32'])
 if (platforms.some((item) => !validPlatforms.has(item))) {
-  console.error('Platforms must be a comma-separated list of macos, windows, and linux.')
+  console.error('Platforms must be a comma-separated list of macos, windows, linux, and android.')
   process.exit(1)
 }
 
@@ -74,6 +75,10 @@ if (fs.existsSync(project)) {
 }
 
 const identifier = args.identifier || `app.web2app.${slug.replaceAll('-', '')}`
+if (args.icon && !fs.existsSync(path.resolve(args.icon))) {
+  console.error(`Icon file does not exist: ${args.icon}`)
+  process.exit(1)
+}
 const config = {
   $schema: 'https://schema.tauri.app/config/2',
   productName: name,
@@ -94,8 +99,10 @@ const config = {
 write(path.join(project, 'package.json'), `${JSON.stringify({ name: slug, private: true, version: '0.1.0', scripts: { tauri: 'tauri' }, devDependencies: { '@tauri-apps/cli': '^2.0.0' } }, null, 2)}\n`)
 write(path.join(project, 'src-tauri', 'tauri.conf.json'), `${JSON.stringify(config, null, 2)}\n`)
 write(path.join(project, 'src-tauri', 'build.rs'), 'fn main() { tauri_build::build() }\n')
-write(path.join(project, 'src-tauri', 'Cargo.toml'), `[package]\nname = "${slug.replaceAll('-', '_')}"\nversion = "0.1.0"\ndescription = "${name.replaceAll('"', '\\"')}"\nedition = "2021"\n\n[build-dependencies]\ntauri-build = { version = "2", features = [] }\n\n[dependencies]\ntauri = { version = "2", features = [] }\n`)
-write(path.join(project, 'src-tauri', 'src', 'main.rs'), '#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]\n\nfn main() {\n  tauri::Builder::default()\n    .run(tauri::generate_context!())\n    .expect("error while running the application");\n}\n')
+write(path.join(project, 'src-tauri', 'Cargo.toml'), `[package]\nname = "${slug.replaceAll('-', '_')}"\nversion = "0.1.0"\ndescription = "${name.replaceAll('"', '\\"')}"\nedition = "2021"\n\n[lib]\nname = "app_lib"\ncrate-type = ["staticlib", "cdylib", "rlib"]\n\n[build-dependencies]\ntauri-build = { version = "2", features = [] }\n\n[dependencies]\ntauri = { version = "2", features = [] }\n`)
+write(path.join(project, 'src-tauri', 'src', 'main.rs'), '#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]\n\nfn main() {\n  app_lib::run();\n}\n')
+write(path.join(project, 'src-tauri', 'src', 'lib.rs'), '#[cfg_attr(mobile, tauri::mobile_entry_point)]\npub fn run() {\n  tauri::Builder::default()\n    .run(tauri::generate_context!())\n    .expect("error while running the application");\n}\n')
+if (args.icon) fs.copyFileSync(path.resolve(args.icon), path.join(project, 'src-tauri', 'icon-source.png'))
 write(path.join(project, 'web2app.config.json'), `${JSON.stringify({ name, url: siteUrl.href, platforms, width, height }, null, 2)}\n`)
 
 console.log(`Created ${project}`)

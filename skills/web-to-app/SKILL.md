@@ -1,6 +1,6 @@
 ---
 name: web-to-app
-description: Package an HTTP or HTTPS website as a lightweight Tauri desktop application for macOS, Windows, or Linux. Use when a user asks to turn a URL, web tool, admin console, or documentation site into an installable desktop app; not for rebuilding the site as a native UI.
+description: Package an HTTP or HTTPS website as a lightweight Tauri application for macOS, Windows, Linux, or Android. Use when a user asks to turn a URL, web tool, admin console, or documentation site into an installable desktop app or APK; not for rebuilding the site as a native UI.
 ---
 
 # Web To App
@@ -14,7 +14,7 @@ Infer sensible defaults and ask only for information that materially changes the
 - Product name and bundle identifier
 - Target platforms
 - Window width, height, resizability, title, and always-on-top behavior
-- Application icon
+- Application icon; normalize uploaded raster images to a square PNG before generating target-specific assets
 - Keyboard shortcuts or tray behavior
 - Authentication, deep-linking, downloads, notifications, or other native capabilities
 
@@ -23,10 +23,10 @@ Normalize missing schemes to `https://` only when that intent is unambiguous. Re
 ## Choose The Delivery
 
 - If the user wants a project, run `node scripts/scaffold.mjs` and return the generated source directory.
-- If the user wants an installer, generate the source first and build on the target operating system. Read [references/platform-builds.md](references/platform-builds.md) before building or configuring CI.
+- If the user wants an installer or APK, generate the source first and build with the matching native toolchain. Read [references/platform-builds.md](references/platform-builds.md) before building or configuring CI.
 - If the user requests multiple platforms from one machine, explain that native installers should be produced with a CI matrix or native runners. Do not imply that one local build produces all formats.
 
-Use the platform WebView supplied by Tauri. Do not introduce a bundled browser engine unless a demonstrated compatibility requirement justifies the size increase.
+Use the platform WebView supplied by Tauri. Android APK builds require the Android SDK, NDK, Java, Rust Android targets, and Tauri mobile initialization. Do not introduce a bundled browser engine unless a demonstrated compatibility requirement justifies the size increase.
 
 ## Implement Safely
 
@@ -52,7 +52,7 @@ Return the project path, target platforms, commands to build, and any unverified
 ## Scaffold Command
 
 ```bash
-node scripts/scaffold.mjs --url https://example.com --name "Example" --platforms macos,windows --width 1280 --height 820 --out ./output
+node scripts/scaffold.mjs --url https://example.com --name "Example" --platforms macos,windows,android --width 1280 --height 820 --icon ./icon.png --out ./output
 ```
 
 Run `node scripts/scaffold.mjs --help` for all flags.

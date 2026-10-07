@@ -187,12 +187,12 @@ function App() {
       <main>
         <section className="intro" id="builder">
           <div className="intro-copy">
-            <div className="eyebrow"><Sparkles size={14} /> AI SKILL · 网页转桌面应用</div>
-            <h1>把常用网页，<br /><span>装进桌面。</span></h1>
-            <p>粘贴网址，配好窗口和平台。用一句话调整细节，然后导出轻量的 Tauri 应用项目。</p>
+            <div className="eyebrow"><Sparkles size={14} /> AI 可选 · 网页转桌面与安卓应用</div>
+            <h1>把常用网页，<br /><span>变成真正的 App。</span></h1>
+            <p>粘贴网址，选择桌面或安卓平台。可以手动配置，也可以让 AI 调整细节，然后导出轻量的 Tauri 应用。</p>
           </div>
           <div className="intro-proof" aria-label="产品特性">
-            <div><strong>3</strong><span>桌面平台</span></div>
+            <div><strong>4</strong><span>桌面 + Android</span></div>
             <div><strong>Rust</strong><span>Tauri 2 内核</span></div>
             <div><strong>1 ZIP</strong><span>可编译项目</span></div>
           </div>
@@ -221,6 +221,16 @@ function App() {
                 </button>
               ))}
             </div>
+
+            <label className="field-label">应用图标</label>
+            <input ref={iconInput} className="icon-file-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => selectIcon(event.target.files?.[0])} />
+            <button className="icon-uploader" onClick={() => iconInput.current?.click()}>
+              <span className="icon-thumb" style={{ '--accent': config.accent } as React.CSSProperties}>
+                {iconDataUrl ? <img src={iconDataUrl} alt="已上传的应用图标" /> : <ImagePlus size={20} />}
+              </span>
+              <span><strong>{iconDataUrl ? '更换应用图标' : '上传应用图标'}</strong><small>PNG / JPG / WebP，自动裁切为 512×512</small></span>
+            </button>
+            {iconError && <p className="field-error">{iconError}</p>}
 
             <button className="advanced-trigger" onClick={() => setAdvancedOpen((open) => !open)} aria-expanded={advancedOpen}>
               <span>窗口与行为</span><ChevronDown size={17} className={advancedOpen ? 'rotated' : ''} />
@@ -259,8 +269,10 @@ function App() {
                   <ExternalLink size={13} />
                 </div>
                 <div className="window-content">
-                  <div className="generated-icon"><Rocket size={30} /></div>
-                  <span className="mini-eyebrow">YOUR DESKTOP APP</span>
+                  <div className={`generated-icon ${iconDataUrl ? 'has-image' : ''}`}>
+                    {iconDataUrl ? <img src={iconDataUrl} alt="应用图标预览" /> : <Rocket size={30} />}
+                  </div>
+                  <span className="mini-eyebrow">YOUR NATIVE APP</span>
                   <h3>{config.appName || 'Untitled App'}</h3>
                   <p>{domain}</p>
                   <div className="window-chips">
@@ -290,38 +302,72 @@ function App() {
               {buildState === 'done' && (
                 <div className="build-complete">
                   <span className="complete-icon"><PackageCheck size={19} /></span>
-                  <div><strong>项目已就绪</strong><small>包含 Rust 入口与 Tauri 配置</small></div>
-                  <button onClick={() => downloadProject(config)}><Download size={17} /> 下载 ZIP</button>
+                  <div><strong>项目已就绪</strong><small>包含桌面与 Android 兼容的 Rust 入口</small></div>
+                  <div className="download-actions">
+                    <button onClick={() => downloadProject(config, iconDataUrl)}><Download size={17} /> 项目 ZIP</button>
+                    {config.platforms.includes('android') && (
+                      <button
+                        className="apk-button"
+                        onClick={buildAndroid}
+                        disabled={!capabilities.android.available || apkState === 'building'}
+                        title={capabilities.android.reason}
+                      >
+                        {apkState === 'building' ? <LoaderCircle size={17} className="spin" /> : <Smartphone size={17} />}
+                        {apkState === 'building' ? '正在构建' : '下载 APK'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
-              <p className="build-note"><Box size={13} /> 安装包需在目标系统或 CI 中编译；实际体积取决于系统与功能。</p>
+              {config.platforms.includes('android') && !capabilities.android.available && (
+                <p className="builder-status"><i /> APK 暂不可直接构建：{capabilities.android.reason}</p>
+              )}
+              {apkError && <p className="field-error build-error">{apkError}</p>}
+              <p className="build-note"><Box size={13} /> ZIP 可直接导出；APK 需连接已配置 Android SDK/NDK 的构建器。</p>
             </div>
           </div>
 
           <aside className="assistant-panel">
             <div className="panel-heading">
-              <div><span className="step-number ai"><Bot size={14} /></span><h2>AI 配置助手</h2></div>
-              <span className="ai-state">在线</span>
+              <div><span className="step-number ai">{useAi ? <Bot size={14} /> : <Settings2 size={14} />}</span><h2>{useAi ? 'AI 配置助手' : '手动配置'}</h2></div>
+              <div className="mode-switch" aria-label="配置方式">
+                <button className={useAi ? 'active' : ''} onClick={() => setUseAi(true)}>AI</button>
+                <button className={!useAi ? 'active' : ''} onClick={() => setUseAi(false)}>手动</button>
+              </div>
             </div>
-            <div className="chat-list">
-              {messages.map((message) => (
-                <div key={message.id} className={`message ${message.role}`}>
-                  {message.role === 'assistant' && <span className="message-avatar"><Sparkles size={13} /></span>}
-                  <p>{message.text}</p>
-                </div>
-              ))}
-              {isThinking && <div className="message assistant"><span className="message-avatar"><Sparkles size={13} /></span><p className="typing"><i /><i /><i /></p></div>}
-              <div ref={chatEnd} />
-            </div>
-            <div className="quick-prompts">
-              {quickPrompts.map((item) => <button key={item} onClick={() => sendMessage(item)}>{item}</button>)}
-            </div>
-            <div className="chat-input">
-              <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage() }
-              }} placeholder="例如：做成 Mac 应用，窗口 1200×800" rows={2} />
-              <button title="发送" aria-label="发送" onClick={() => sendMessage()} disabled={!prompt.trim() || isThinking}><Send size={17} /></button>
-            </div>
+            {useAi ? <>
+              <div className="chat-list">
+                {messages.map((message) => (
+                  <div key={message.id} className={`message ${message.role}`}>
+                    {message.role === 'assistant' && <span className="message-avatar"><Sparkles size={13} /></span>}
+                    <p>{message.text}</p>
+                  </div>
+                ))}
+                {isThinking && <div className="message assistant"><span className="message-avatar"><Sparkles size={13} /></span><p className="typing"><i /><i /><i /></p></div>}
+                <div ref={chatEnd} />
+              </div>
+              <div className="quick-prompts">
+                {quickPrompts.map((item) => <button key={item} onClick={() => sendMessage(item)}>{item}</button>)}
+              </div>
+              <div className="chat-input">
+                <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage() }
+                }} placeholder="例如：做成安卓应用，窗口 1200×800" rows={2} />
+                <button title="发送" aria-label="发送" onClick={() => sendMessage()} disabled={!prompt.trim() || isThinking}><Send size={17} /></button>
+              </div>
+            </> : (
+              <div className="manual-mode">
+                <span className="manual-icon"><Settings2 size={24} /></span>
+                <h3>不使用 AI，也能完整生成</h3>
+                <p>左侧所有配置都会直接写入项目，不会调用任何 AI 接口。</p>
+                <dl>
+                  <div><dt>应用</dt><dd>{config.appName || '未命名'}</dd></div>
+                  <div><dt>平台</dt><dd>{config.platforms.length} 个</dd></div>
+                  <div><dt>图标</dt><dd>{iconDataUrl ? '已自定义' : '使用默认'}</dd></div>
+                  <div><dt>输出</dt><dd>{config.platforms.includes('android') ? 'ZIP / APK' : '项目 ZIP'}</dd></div>
+                </dl>
+              </div>
+            )}
           </aside>
         </section>
 
@@ -330,12 +376,12 @@ function App() {
           <div className="workflow-steps">
             <article><span>01</span><Globe2 /><h3>解析网页</h3><p>读取网址与名称，生成安全的远程 WebView 配置。</p></article>
             <article><span>02</span><Box /><h3>生成项目</h3><p>导出标准 Tauri 2 目录，可继续加入图标与原生能力。</p></article>
-            <article><span>03</span><PackageCheck /><h3>原生构建</h3><p>在 macOS、Windows、Linux 或 CI 上产出对应安装包。</p></article>
+            <article><span>03</span><PackageCheck /><h3>原生构建</h3><p>在桌面系统或 Android 构建器上产出对应安装包。</p></article>
           </div>
         </section>
       </main>
 
-      <footer><span>WEB2APP STUDIO</span><p>Tauri-powered desktop wrappers, configured with AI.</p><span>2026</span></footer>
+      <footer><span>WEB2APP STUDIO</span><p>Tauri-powered apps, with or without AI.</p><span>2026</span></footer>
     </div>
   )
 }

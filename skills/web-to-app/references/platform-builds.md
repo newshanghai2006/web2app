@@ -11,8 +11,11 @@ Build each installer on its native operating system:
 | macOS | `.app`, `.dmg` | macOS |
 | Windows | `.msi`, NSIS `.exe` | Windows |
 | Linux | `.deb`, `.rpm`, `.AppImage` | Linux |
+| Android | `.apk`, `.aab` | Android SDK/NDK runner |
 
 Use `npm run tauri build` on a configured native runner. For several platforms, prefer a CI matrix with one runner per operating system. Code signing and notarization require credentials owned by the user or their organization; never invent, expose, or commit them.
+
+For Android, initialize once with `npm run tauri -- android init`, then produce an APK with `npm run tauri -- android build --apk`. A release intended for Google Play normally uses an Android App Bundle and a user-owned signing key.
 
 ## Prerequisites
 
