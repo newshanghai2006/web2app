@@ -1,0 +1,7 @@
+interface:
+  display_name: "网页转桌面应用"
+  short_description: "用 Tauri 将网站生成轻量、可配置的跨平台桌面应用项目"
+  brand_color: "#9B7BFF"
+  default_prompt: "使用 $web-to-app 把这个网址打包成桌面应用。"
+policy:
+  allow_implicit_invocation: true
